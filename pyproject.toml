@@ -42,10 +42,12 @@ ui = [
 dev = [
     "pytest>=8.3",
     "pytest-cov>=5.0",
+    "pytest-asyncio>=0.24",
     "ruff>=0.6",
     "mypy>=1.11",
     "pre-commit>=3.8",
     "rapidfuzz>=3.10",
+    "tqdm>=4.66",
 ]
 
 [tool.uv]

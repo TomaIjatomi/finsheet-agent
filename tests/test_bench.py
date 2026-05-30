@@ -2,6 +2,7 @@
 
 Run with: pytest -q
 """
+
 import json
 from pathlib import Path
 
@@ -64,6 +65,29 @@ def test_verifier_numeric():
     assert not v.correct
 
 
+def test_verifier_numeric_large_values_regression():
+    """Q10 baseline failures: response exactly matches GT but verifier
+    was returning False because the thousands-separator regex alternative
+    greedy-matched only 3 digits of '1418.4', leaving '8.4' as the
+    extracted value. Regression covers the failure shapes observed in
+    the 2.5 Pro baseline run.
+    """
+    # Bare large numbers, identical response and GT
+    for value in [1418.4, 1402.0, 1461.1, 1385.4, 1350.5]:
+        v = verify(str(value), value, "numeric")
+        assert v.correct, f"large bare number {value} not recognized"
+        assert v.tier == 1
+    # Integer response for a float GT
+    v = verify("1402", 1402.0, "numeric")
+    assert v.correct
+    # Comma-formatted large number (must still work)
+    v = verify("1,418.4", 1418.4, "numeric")
+    assert v.correct
+    # Number embedded in narrative — last token still wins
+    v = verify("The entry EV is 1418.4 million.", 1418.4, "numeric")
+    assert v.correct
+
+
 def test_verifier_string_in_narrative():
     v = verify("The latest fund is Fund IV.", "Fund IV", "string")
     assert v.correct
@@ -74,6 +98,66 @@ def test_verifier_list_extraction():
     v = verify("1. Apex\n2. Bloom\n3. Cipher", expected, "list")
     assert v.correct
     v = verify("Apex, Bloom, Cipher.", expected, "list")
+    assert v.correct
+
+
+def test_verifier_dict_exact_match():
+    """The Failure 9 case — perfect dict response should score correct at Tier 1."""
+    expected = {"Fund I": 6, "Fund II": 9, "Fund III": 9}
+    response = "Fund I: 6\nFund II: 9\nFund III: 9"
+    v = verify(response, expected, "dict")
+    assert v.correct
+    assert v.tier == 1
+
+
+def test_verifier_dict_string_values():
+    """Dict with string values (Q6: per-fund highest company)."""
+    expected = {"Growth": "Junction GmbH", "Income": "Orion Pharma"}
+    response = "Growth: Junction GmbH\nIncome: Orion Pharma"
+    v = verify(response, expected, "dict")
+    assert v.correct
+
+
+def test_verifier_dict_partial_truncation_fails():
+    """Truncated response (Failure 3) should not pass at Tier 1."""
+    expected = {
+        "Growth": "Junction GmbH",
+        "Income": "Orion Pharma",
+        "Stability": "Cobalt Pharma",
+        "Diversify": "Orion Inc",
+    }
+    response = "Growth: Junction GmbH\nIncome: Orion Pharma\nStability: Cobalt Pharma\nDiversify:"
+    v = verify(response, expected, "dict")
+    # The "Diversify:" line has no value, so parse skips it; only 3/4 keys present
+    assert not v.correct
+
+
+def test_verifier_dict_tolerant_numbers():
+    """Tier 2 accepts dict values within 5% tolerance."""
+    expected = {"Fund I": 100.0, "Fund II": 200.0}
+    response = "Fund I: 102.0\nFund II: 196.0"  # 2% and 2% off — within 2.5%
+    v = verify(response, expected, "dict")
+    assert v.correct
+    # Now 4% off — fails Tier 1, passes Tier 2
+    response2 = "Fund I: 104.0\nFund II: 208.0"
+    v2 = verify(response2, expected, "dict")
+    assert v2.correct
+    assert v2.tier == 2
+
+
+def test_verifier_dict_markdown_bold():
+    """LLMs sometimes wrap keys in ** ... ** markdown bold."""
+    expected = {"Fund I": 47.3, "Fund II": 89.1}
+    response = "**Fund I**: 47.3\n**Fund II**: 89.1"
+    v = verify(response, expected, "dict")
+    assert v.correct
+
+
+def test_verifier_dict_with_currency():
+    """LLMs sometimes include currency symbols / units in the value."""
+    expected = {"Fund I": 47.3, "Fund II": 89.1}
+    response = "Fund I: $47.3M\nFund II: $89.1 million"
+    v = verify(response, expected, "dict")
     assert v.correct
 
 
@@ -88,8 +172,7 @@ def test_bench_artifacts_exist():
     # n_files = (number of base templates) * 3 versions
     expected_files = len(TEMPLATES) * 3
     assert manifest["n_files"] == expected_files, (
-        f"Expected {expected_files} files for {len(TEMPLATES)} templates, "
-        f"got {manifest['n_files']}"
+        f"Expected {expected_files} files for {len(TEMPLATES)} templates, got {manifest['n_files']}"
     )
     # Roughly 22 questions per file
     assert manifest["n_questions_total"] >= expected_files * 18

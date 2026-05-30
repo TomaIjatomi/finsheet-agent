@@ -12,6 +12,7 @@ Following FinSheet-Bench Section 4.3.1:
 Returns a Verdict object with the tier that resolved it, the confidence score,
 and the boolean correctness.
 """
+
 from __future__ import annotations
 
 import re
@@ -27,16 +28,18 @@ import dateutil.parser as dp
 @dataclass
 class Verdict:
     correct: bool
-    tier: int                      # 1, 2, or 3
-    confidence: float              # 0..1
+    tier: int  # 1, 2, or 3
+    confidence: float  # 0..1
     extracted_value: Any
     explanation: str
 
 
 # -------- Tier 1: exact ----------------------------------------------------
 
-NUMERIC_REGEX = re.compile(r"(?<![A-Za-z])(-?\d{1,3}(?:,\d{3})*(?:\.\d+)?|-?\d+(?:\.\d+)?)(?![A-Za-z])")
-NUMERIC_REGEX_LOOSE = re.compile(r"(-?\d{1,3}(?:,\d{3})*(?:\.\d+)?|-?\d+(?:\.\d+)?)")
+NUMERIC_REGEX = re.compile(
+    r"(?<![A-Za-z])(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?|-?\d+(?:\.\d+)?)(?![A-Za-z])"
+)
+NUMERIC_REGEX_LOOSE = re.compile(r"(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?|-?\d+(?:\.\d+)?)")
 
 
 def _extract_number_strict(s: str) -> float | None:
@@ -89,6 +92,59 @@ def _extract_items(s: str) -> list[str]:
     return out
 
 
+def _extract_dict(s: str) -> dict[str, str]:
+    """Parse 'Key: value' pairs from a string into a flat dict.
+
+    Handles newline-, semicolon-, and comma-separated entries. Tolerant of
+    LLM stylistic variations: bullets, numbering, currency symbols, markdown
+    bold (`**Fund I**: 47.3`), and inline commentary after the value.
+    """
+    result: dict[str, str] = {}
+    # First normalize: strip markdown bold, bullets, leading numbers
+    cleaned = re.sub(r"\*\*", "", s)
+    cleaned = re.sub(r"^[\-\*]\s+", "", cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r"\b\d+[\.\)]\s+", "", cleaned)
+
+    # Split on newlines first, fall back to semicolons, then commas-before-key-pattern
+    lines = re.split(r"[\n;]", cleaned)
+    if len(lines) == 1 and cleaned.count(":") > 1:
+        # Try splitting on commas only when there are multiple "Key: value" pairs
+        lines = re.split(r",\s+(?=[A-Z])", cleaned)
+
+    for line in lines:
+        line = line.strip().rstrip(",")
+        if ":" not in line:
+            continue
+        key, _, value = line.partition(":")
+        key = key.strip().strip("\"'`").strip()
+        value = value.strip().strip("\"'`").strip().rstrip(",").strip()
+        # Strip currency / units
+        value = re.sub(r"[\$£€]", "", value).strip()
+        value = re.sub(
+            r"\b(million|M|MM|thousand|K|bn|billion)\b", "", value, flags=re.IGNORECASE
+        ).strip()
+        if key and value:
+            result[key] = value
+    return result
+
+
+def _parse_numeric(s: str) -> float | None:
+    """Best-effort numeric parse from a possibly-messy string."""
+    if s is None:
+        return None
+    try:
+        return float(re.sub(r"[,\s]", "", s))
+    except (ValueError, TypeError):
+        # Try extracting the first number-like substring
+        m = NUMERIC_REGEX_LOOSE.search(s)
+        if m:
+            try:
+                return float(m.group(0).replace(",", ""))
+            except ValueError:
+                return None
+        return None
+
+
 def _jaccard(a: set, b: set) -> float:
     if not a and not b:
         return 1.0
@@ -118,6 +174,7 @@ def _bool_match(s: str, expected: str) -> bool:
 
 
 # -------- Tier 1 verify ----------------------------------------------------
+
 
 def verify_tier1(answer_text: str, expected: Any, answer_type: str) -> Verdict | None:
     """Strict rule-based extraction. Returns a verdict only when the answer
@@ -178,12 +235,43 @@ def verify_tier1(answer_text: str, expected: Any, answer_type: str) -> Verdict |
         return None  # Defer
 
     if answer_type == "dict":
-        return None  # Defer to Tier 3 LLM
+        if not isinstance(expected, dict):
+            return None
+        parsed = _extract_dict(answer_text)
+        if not parsed:
+            return None
+        # Tier 1 requires complete coverage: every expected key must be present
+        # (case-insensitive), and every value must match within tight tolerance.
+        exp_keys_norm = {_norm_str(k): k for k in expected}
+        parsed_keys_norm = {_norm_str(k): k for k in parsed}
+        # Tier 1 demands exact key set
+        if set(exp_keys_norm.keys()) != set(parsed_keys_norm.keys()):
+            return None  # Defer to Tier 2 (it allows fuzzy keys)
+        for ekey_norm, ekey in exp_keys_norm.items():
+            pkey = parsed_keys_norm[ekey_norm]
+            exp_val = expected[ekey]
+            par_val = parsed[pkey]
+            if isinstance(exp_val, (int, float)):
+                pn = _parse_numeric(par_val)
+                if pn is None:
+                    return None
+                if not _within_tolerance(pn, float(exp_val), 0.025):
+                    # Strict tolerance miss; defer to Tier 2
+                    return None
+            else:
+                # Compare as strings, case-insensitive, allow substring containment
+                if _norm_str(str(exp_val)) == _norm_str(str(par_val)):
+                    continue
+                if _norm_str(str(exp_val)) in _norm_str(str(par_val)):
+                    continue
+                return None
+        return Verdict(True, 1, 0.96, parsed, f"Tier 1 dict match ({len(parsed)} keys)")
 
     return None
 
 
 # -------- Tier 2: fuzzy ----------------------------------------------------
+
 
 def verify_tier2(answer_text: str, expected: Any, answer_type: str) -> Verdict | None:
     """Tolerant rule-based pass. Returns Verdict if confidence >= 0.70."""
@@ -211,10 +299,80 @@ def verify_tier2(answer_text: str, expected: Any, answer_type: str) -> Verdict |
         exp = set(s.lower() for s in expected)
         score = _jaccard(items, exp)
         if score >= 0.75:
-            return Verdict(True, 2, 0.78, sorted(items),
-                           f"Tier 2 Jaccard {score:.2f}")
-        return Verdict(False, 2, 0.75, sorted(items),
-                       f"Tier 2 Jaccard {score:.2f} below threshold")
+            return Verdict(True, 2, 0.78, sorted(items), f"Tier 2 Jaccard {score:.2f}")
+        return Verdict(False, 2, 0.75, sorted(items), f"Tier 2 Jaccard {score:.2f} below threshold")
+
+    if answer_type == "dict":
+        if not isinstance(expected, dict):
+            return None
+        parsed = _extract_dict(answer_text)
+        if not parsed:
+            return Verdict(
+                False,
+                2,
+                0.72,
+                None,
+                "Tier 2 dict: could not parse any key:value pairs from response",
+            )
+        # Fuzzy key matching + 5% numeric tolerance
+        exp_keys_norm = {_norm_str(k): k for k in expected}
+        parsed_keys_norm = {_norm_str(k): k for k in parsed}
+        matched = 0
+        correct = 0
+        n_expected = len(expected)
+        for ekey_norm, ekey in exp_keys_norm.items():
+            # Find best parsed key by fuzzy match
+            if ekey_norm in parsed_keys_norm:
+                pkey_norm = ekey_norm
+            else:
+                best_ratio = 0.0
+                best_pk = None
+                for pk_norm in parsed_keys_norm:
+                    r = SequenceMatcher(None, ekey_norm, pk_norm).ratio()
+                    if r > best_ratio:
+                        best_ratio = r
+                        best_pk = pk_norm
+                if best_ratio < 0.85 or best_pk is None:
+                    continue
+                pkey_norm = best_pk
+            matched += 1
+            exp_val = expected[ekey]
+            par_val = parsed[parsed_keys_norm[pkey_norm]]
+            if isinstance(exp_val, (int, float)):
+                pn = _parse_numeric(par_val)
+                if pn is not None and _within_tolerance(pn, float(exp_val), 0.05):
+                    correct += 1
+            else:
+                if (
+                    _norm_str(str(exp_val)) == _norm_str(str(par_val))
+                    or _norm_str(str(exp_val)) in _norm_str(str(par_val))
+                    or _norm_str(str(par_val)) in _norm_str(str(exp_val))
+                ):
+                    correct += 1
+        # Score is the geometric mean of key coverage and value accuracy
+        if n_expected == 0:
+            return None
+        key_recall = matched / n_expected
+        value_acc = correct / n_expected
+        score = (key_recall + value_acc) / 2
+        if score >= 0.85:
+            return Verdict(
+                True,
+                2,
+                0.78,
+                parsed,
+                f"Tier 2 dict {correct}/{n_expected} values correct, "
+                f"{matched}/{n_expected} keys matched",
+            )
+        return Verdict(
+            False,
+            2,
+            0.75,
+            parsed,
+            f"Tier 2 dict score {score:.2f}: "
+            f"{correct}/{n_expected} values correct, "
+            f"{matched}/{n_expected} keys matched",
+        )
 
     return None
 
@@ -225,6 +383,7 @@ LLMJudge = Callable[[str, Any, str], Verdict]
 """Signature: (answer_text, expected, answer_type) -> Verdict.
 Implement using Gemini 3 Flash or similar once the agent stack is up.
 """
+
 
 def _default_llm_judge_hook(answer_text: str, expected: Any, answer_type: str) -> Verdict:
     """Placeholder until the LLM judge is wired up. Marks unresolved."""
@@ -239,8 +398,10 @@ def _default_llm_judge_hook(answer_text: str, expected: Any, answer_type: str) -
 
 # -------- Public entry point ----------------------------------------------
 
-def verify(answer_text: str, expected: Any, answer_type: str,
-           llm_judge: LLMJudge | None = None) -> Verdict:
+
+def verify(
+    answer_text: str, expected: Any, answer_type: str, llm_judge: LLMJudge | None = None
+) -> Verdict:
     """Cascading verification. Returns final Verdict.
 
     Tier 1 -> Tier 2 -> Tier 3 (LLM adjudication if provided).

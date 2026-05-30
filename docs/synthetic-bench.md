@@ -4,9 +4,7 @@ This document describes how the synthetic FinSheet bench was constructed, mirror
 
 ## Why a synthetic bench
 
-FinSheet-Bench is not openly distributed (corresponding author `info@qubera.ch`, commercial gatekeeping). Their dataset is itself synthetic — generated from real PE portfolio templates with all cell values regenerated. So there's no privacy reason it can't be released, just a commercial one. Rather than wait, we reconstruct an equivalent bench from their fully-documented methodology.
-
-A request was sent to Qubera (template in `docs/SETUP.md`). If they grant access, the real bench becomes a second evaluation surface. The synthetic bench remains the open reproducible artifact.
+FinSheet-Bench is not openly distributed (corresponding author `info@qubera.ch`). Their dataset is itself synthetic — generated from real PE portfolio templates with all cell values regenerated. We reconstruct an equivalent bench from their fully-documented methodology.
 
 ## Spec overview
 

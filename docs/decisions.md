@@ -154,3 +154,18 @@ Security flags applied per container:
 **Trade-off:** ~200–400ms cold-start per container call. Since each query triggers 2–4 computation calls, the overhead is acceptable (within the < 45s P95 latency target). Container image reuse across calls (only the runner code changes per call) keeps warm-start latency low.
 
 **What stays unchanged:** the MCP server interface. Agents call `execute_python(code, named_ranges)` and receive structured JSON. The Docker implementation is hidden behind that boundary — same code, same agent prompts, same observability.
+
+---
+
+## D13 — Switch baseline model from Gemini 3.1 Pro Preview to Gemini 2.5 Pro (GA)
+
+**Decision:** The full-context baseline uses Gemini **2.5 Pro (GA)** as the default model, not Gemini 3.1 Pro Preview. Concurrency lowered to 5; retry backoff lengthened to `5 × 2^attempt + jitter` (max ~80s per call).
+
+**Why:**
+- **Quota:** 3.1 Pro Preview has tight per-project rate limits — a 528-question run with concurrency=10 hit 429 RESOURCE_EXHAUSTED on 210/528 calls (40%) during the first attempt. Quota increase requests for preview models take 2-5 business days; doesn't fit the project timeline.
+- **Production realism:** No regulated FS customer deploys preview models. The demo's framing is "agentic architecture lifting a production-grade single-model baseline." 2.5 Pro IS what production deployments actually use today; 3.1 Pro is the "look what's coming" model. The former is the more honest baseline for an FDE pitch.
+- **Architecture story doesn't change:** the demo's value is "multi-agent lifts accuracy from X% to Y%." Whether the X is 82% (3.1 Pro) or ~75% (2.5 Pro), the architectural gap to clear is similar in shape, and the case for an agentic system is arguably stronger when the baseline is what customers actually have access to.
+
+**Trade-off — disclosed in eval report:** the FinSheet-Bench paper specifically benchmarked 3.1 Pro at 82.4% overall. With 2.5 Pro the expected baseline is ~73-78% on our synthetic bench, which is *not* a direct paper reproduction. Stated in `docs/eval-report.md` alongside the headline number rather than buried — transparency on this is the senior-engineer move.
+
+**What stays unchanged:** the prompt template, serializer, verifier, runner, scoring code, synthetic bench. The Solver protocol means the model swap is a single env-var change.

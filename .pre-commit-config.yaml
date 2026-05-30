@@ -1,0 +1,23 @@
+# Pre-commit hooks for finsheet-agent.
+# Runs ruff lint + format and basic hygiene checks on every commit.
+# Tests are deliberately excluded — too slow for per-commit; run in CI.
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: '\.md$'  # markdown trailing spaces are sometimes intentional
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=5000']  # bench xlsx files are ~25KB, plenty of margin
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.15
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
