@@ -1,0 +1,240 @@
+{
+  "templates": [
+    {
+      "file_id": "synthetic1",
+      "n_companies": 45,
+      "n_funds": 4,
+      "notes": "Small, clean structure. Baseline difficulty.",
+      "files": [
+        {
+          "version": "A",
+          "xlsx": "files\\synthetic1_A.xlsx",
+          "canonical": "files\\synthetic1_A.canonical.parquet",
+          "n_rows": 45,
+          "n_questions": 22
+        },
+        {
+          "version": "B",
+          "xlsx": "files\\synthetic1_B.xlsx",
+          "canonical": "files\\synthetic1_B.canonical.parquet",
+          "n_rows": 28,
+          "n_questions": 22
+        },
+        {
+          "version": "C",
+          "xlsx": "files\\synthetic1_C.xlsx",
+          "canonical": "files\\synthetic1_C.canonical.parquet",
+          "n_rows": 32,
+          "n_questions": 22
+        }
+      ]
+    },
+    {
+      "file_id": "synthetic2",
+      "n_companies": 89,
+      "n_funds": 5,
+      "notes": "Medium size with summary rows.",
+      "files": [
+        {
+          "version": "A",
+          "xlsx": "files\\synthetic2_A.xlsx",
+          "canonical": "files\\synthetic2_A.canonical.parquet",
+          "n_rows": 89,
+          "n_questions": 22
+        },
+        {
+          "version": "B",
+          "xlsx": "files\\synthetic2_B.xlsx",
+          "canonical": "files\\synthetic2_B.canonical.parquet",
+          "n_rows": 58,
+          "n_questions": 22
+        },
+        {
+          "version": "C",
+          "xlsx": "files\\synthetic2_C.xlsx",
+          "canonical": "files\\synthetic2_C.canonical.parquet",
+          "n_rows": 64,
+          "n_questions": 22
+        }
+      ]
+    },
+    {
+      "file_id": "synthetic3",
+      "n_companies": 114,
+      "n_funds": 6,
+      "notes": "Multi-line headers; fund as row separator.",
+      "files": [
+        {
+          "version": "A",
+          "xlsx": "files\\synthetic3_A.xlsx",
+          "canonical": "files\\synthetic3_A.canonical.parquet",
+          "n_rows": 114,
+          "n_questions": 22
+        },
+        {
+          "version": "B",
+          "xlsx": "files\\synthetic3_B.xlsx",
+          "canonical": "files\\synthetic3_B.canonical.parquet",
+          "n_rows": 75,
+          "n_questions": 22
+        },
+        {
+          "version": "C",
+          "xlsx": "files\\synthetic3_C.xlsx",
+          "canonical": "files\\synthetic3_C.canonical.parquet",
+          "n_rows": 82,
+          "n_questions": 22
+        }
+      ]
+    },
+    {
+      "file_id": "synthetic4",
+      "n_companies": 152,
+      "n_funds": 8,
+      "notes": "Largest, hardest. Mirrors FinSheet-Bench synthetic4_A (152 companies, 8 funds, 48.6% average accuracy in the paper).",
+      "files": [
+        {
+          "version": "A",
+          "xlsx": "files\\synthetic4_A.xlsx",
+          "canonical": "files\\synthetic4_A.canonical.parquet",
+          "n_rows": 152,
+          "n_questions": 22
+        },
+        {
+          "version": "B",
+          "xlsx": "files\\synthetic4_B.xlsx",
+          "canonical": "files\\synthetic4_B.canonical.parquet",
+          "n_rows": 99,
+          "n_questions": 22
+        },
+        {
+          "version": "C",
+          "xlsx": "files\\synthetic4_C.xlsx",
+          "canonical": "files\\synthetic4_C.canonical.parquet",
+          "n_rows": 110,
+          "n_questions": 22
+        }
+      ]
+    },
+    {
+      "file_id": "synthetic5",
+      "n_companies": 58,
+      "n_funds": 4,
+      "notes": "Descriptive fund names (Growth, Income, Stability, Diversify). Tests non-numeric fund recognition; the 'latest' fund cannot be inferred from name alone.",
+      "files": [
+        {
+          "version": "A",
+          "xlsx": "files\\synthetic5_A.xlsx",
+          "canonical": "files\\synthetic5_A.canonical.parquet",
+          "n_rows": 58,
+          "n_questions": 22
+        },
+        {
+          "version": "B",
+          "xlsx": "files\\synthetic5_B.xlsx",
+          "canonical": "files\\synthetic5_B.canonical.parquet",
+          "n_rows": 37,
+          "n_questions": 22
+        },
+        {
+          "version": "C",
+          "xlsx": "files\\synthetic5_C.xlsx",
+          "canonical": "files\\synthetic5_C.canonical.parquet",
+          "n_rows": 42,
+          "n_questions": 22
+        }
+      ]
+    },
+    {
+      "file_id": "synthetic6",
+      "n_companies": 46,
+      "n_funds": 5,
+      "notes": "Letter fund naming (Fund A, B, C, D, E). Fund as row separator; tests alternate naming + structural shift together.",
+      "files": [
+        {
+          "version": "A",
+          "xlsx": "files\\synthetic6_A.xlsx",
+          "canonical": "files\\synthetic6_A.canonical.parquet",
+          "n_rows": 46,
+          "n_questions": 22
+        },
+        {
+          "version": "B",
+          "xlsx": "files\\synthetic6_B.xlsx",
+          "canonical": "files\\synthetic6_B.canonical.parquet",
+          "n_rows": 29,
+          "n_questions": 22
+        },
+        {
+          "version": "C",
+          "xlsx": "files\\synthetic6_C.xlsx",
+          "canonical": "files\\synthetic6_C.canonical.parquet",
+          "n_rows": 32,
+          "n_questions": 22
+        }
+      ]
+    },
+    {
+      "file_id": "synthetic7",
+      "n_companies": 34,
+      "n_funds": 3,
+      "notes": "Smallest file (34 companies, 3 funds). Tests behavior on compact portfolios where context cost is minimal.",
+      "files": [
+        {
+          "version": "A",
+          "xlsx": "files\\synthetic7_A.xlsx",
+          "canonical": "files\\synthetic7_A.canonical.parquet",
+          "n_rows": 34,
+          "n_questions": 22
+        },
+        {
+          "version": "B",
+          "xlsx": "files\\synthetic7_B.xlsx",
+          "canonical": "files\\synthetic7_B.canonical.parquet",
+          "n_rows": 21,
+          "n_questions": 22
+        },
+        {
+          "version": "C",
+          "xlsx": "files\\synthetic7_C.xlsx",
+          "canonical": "files\\synthetic7_C.canonical.parquet",
+          "n_rows": 24,
+          "n_questions": 22
+        }
+      ]
+    },
+    {
+      "file_id": "synthetic8",
+      "n_companies": 108,
+      "n_funds": 9,
+      "notes": "Most funds (9). Tests fund-boundary detection at scale; small avg fund size makes Q6/Q8 harder.",
+      "files": [
+        {
+          "version": "A",
+          "xlsx": "files\\synthetic8_A.xlsx",
+          "canonical": "files\\synthetic8_A.canonical.parquet",
+          "n_rows": 108,
+          "n_questions": 22
+        },
+        {
+          "version": "B",
+          "xlsx": "files\\synthetic8_B.xlsx",
+          "canonical": "files\\synthetic8_B.canonical.parquet",
+          "n_rows": 69,
+          "n_questions": 22
+        },
+        {
+          "version": "C",
+          "xlsx": "files\\synthetic8_C.xlsx",
+          "canonical": "files\\synthetic8_C.canonical.parquet",
+          "n_rows": 78,
+          "n_questions": 22
+        }
+      ]
+    }
+  ],
+  "n_files": 24,
+  "n_questions_total": 528,
+  "sample_size": 3,
+  "seed": 42
+}
