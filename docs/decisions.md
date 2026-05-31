@@ -169,3 +169,31 @@ Security flags applied per container:
 **Trade-off — disclosed in eval report:** the FinSheet-Bench paper specifically benchmarked 3.1 Pro at 82.4% overall. With 2.5 Pro the expected baseline is ~73-78% on our synthetic bench, which is *not* a direct paper reproduction. Stated in `docs/eval-report.md` alongside the headline number rather than buried — transparency on this is the senior-engineer move.
 
 **What stays unchanged:** the prompt template, serializer, verifier, runner, scoring code, synthetic bench. The Solver protocol means the model swap is a single env-var change.
+
+---
+
+## D14 — Naive RAG baseline: row-window chunking, headers-per-chunk, top-K=5, no spreadsheet-aware reranking
+
+**Decision:** The M1.4 naive RAG baseline uses:
+- **Chunking**: 10-row windows over the body of the spreadsheet
+- **Header preservation**: title + units + header row included at the top of every chunk so the LLM always sees column names
+- **Embedding model**: `text-embedding-005` (Vertex AI), `RETRIEVAL_DOCUMENT` task type for chunks, `RETRIEVAL_QUERY` for the question
+- **Index**: in-memory, cosine similarity, no vector DB
+- **Retrieval**: top-K = 5, no reranking, no query rewriting, no metadata filtering
+- **Cache**: file-level embedding cache — each xlsx is embedded once and reused across its ~22 questions
+
+**Why these specific choices:**
+- **Naive on purpose.** The point of M1.4 is to characterize what a generic "first pass at RAG" achieves on spreadsheet QA — the kind of pipeline an FDE customer might stand up before deciding they need something more principled. Tuning chunk size, K, or adding reranking would defeat that purpose.
+- **Headers per chunk** is a small concession to fairness — without column names, the LLM literally can't interpret any cell. Including them is what any reasonable engineer would do day one. Not doing it would make the baseline collapse to ~10% and be uninteresting.
+- **Embedding cache** is purely a cost optimization. 24 files × ~30-50 chunks each = ~1,000 embeddings cached vs ~12,000 if we re-embedded per query.
+
+**Expected outcome:**
+- Overall: 40-55% (vs full-context 94.3%)
+- Hard tier (synthetic4): 25-40%
+- Aggregation and Sorting questions should collapse to near-zero (top-K can't supply all rows)
+- Simple Lookup may hold up reasonably (embedding similarity often picks the right chunk)
+
+**What this baseline establishes for the demo:**
+> *"I tested both pragmatic baselines an FDE customer would consider — full-context (94%) and naive RAG (~45%). Full-context works but doesn't scale to enterprise spreadsheets with hundreds of sheets. Naive RAG scales but fails because spreadsheet structure doesn't chunk cleanly. The agentic architecture in M2 is the principled answer that handles both context cost and structural complexity."*
+
+**Cost:** ~$0.01 embeddings + ~$1.50 chat = ~$1.50 total per full run. Wall-clock 10-15 minutes.

@@ -8,23 +8,23 @@
       "files": [
         {
           "version": "A",
-          "xlsx": "files\\synthetic1_A.xlsx",
-          "canonical": "files\\synthetic1_A.canonical.parquet",
+          "xlsx": "files/synthetic1_A.xlsx",
+          "canonical": "files/synthetic1_A.canonical.parquet",
           "n_rows": 45,
           "n_questions": 22
         },
         {
           "version": "B",
-          "xlsx": "files\\synthetic1_B.xlsx",
-          "canonical": "files\\synthetic1_B.canonical.parquet",
-          "n_rows": 28,
+          "xlsx": "files/synthetic1_B.xlsx",
+          "canonical": "files/synthetic1_B.canonical.parquet",
+          "n_rows": 29,
           "n_questions": 22
         },
         {
           "version": "C",
-          "xlsx": "files\\synthetic1_C.xlsx",
-          "canonical": "files\\synthetic1_C.canonical.parquet",
-          "n_rows": 32,
+          "xlsx": "files/synthetic1_C.xlsx",
+          "canonical": "files/synthetic1_C.canonical.parquet",
+          "n_rows": 33,
           "n_questions": 22
         }
       ]
@@ -37,22 +37,22 @@
       "files": [
         {
           "version": "A",
-          "xlsx": "files\\synthetic2_A.xlsx",
-          "canonical": "files\\synthetic2_A.canonical.parquet",
+          "xlsx": "files/synthetic2_A.xlsx",
+          "canonical": "files/synthetic2_A.canonical.parquet",
           "n_rows": 89,
           "n_questions": 22
         },
         {
           "version": "B",
-          "xlsx": "files\\synthetic2_B.xlsx",
-          "canonical": "files\\synthetic2_B.canonical.parquet",
-          "n_rows": 58,
+          "xlsx": "files/synthetic2_B.xlsx",
+          "canonical": "files/synthetic2_B.canonical.parquet",
+          "n_rows": 57,
           "n_questions": 22
         },
         {
           "version": "C",
-          "xlsx": "files\\synthetic2_C.xlsx",
-          "canonical": "files\\synthetic2_C.canonical.parquet",
+          "xlsx": "files/synthetic2_C.xlsx",
+          "canonical": "files/synthetic2_C.canonical.parquet",
           "n_rows": 64,
           "n_questions": 22
         }
@@ -66,23 +66,23 @@
       "files": [
         {
           "version": "A",
-          "xlsx": "files\\synthetic3_A.xlsx",
-          "canonical": "files\\synthetic3_A.canonical.parquet",
+          "xlsx": "files/synthetic3_A.xlsx",
+          "canonical": "files/synthetic3_A.canonical.parquet",
           "n_rows": 114,
           "n_questions": 22
         },
         {
           "version": "B",
-          "xlsx": "files\\synthetic3_B.xlsx",
-          "canonical": "files\\synthetic3_B.canonical.parquet",
-          "n_rows": 75,
+          "xlsx": "files/synthetic3_B.xlsx",
+          "canonical": "files/synthetic3_B.canonical.parquet",
+          "n_rows": 74,
           "n_questions": 22
         },
         {
           "version": "C",
-          "xlsx": "files\\synthetic3_C.xlsx",
-          "canonical": "files\\synthetic3_C.canonical.parquet",
-          "n_rows": 82,
+          "xlsx": "files/synthetic3_C.xlsx",
+          "canonical": "files/synthetic3_C.canonical.parquet",
+          "n_rows": 83,
           "n_questions": 22
         }
       ]
@@ -95,23 +95,23 @@
       "files": [
         {
           "version": "A",
-          "xlsx": "files\\synthetic4_A.xlsx",
-          "canonical": "files\\synthetic4_A.canonical.parquet",
+          "xlsx": "files/synthetic4_A.xlsx",
+          "canonical": "files/synthetic4_A.canonical.parquet",
           "n_rows": 152,
           "n_questions": 22
         },
         {
           "version": "B",
-          "xlsx": "files\\synthetic4_B.xlsx",
-          "canonical": "files\\synthetic4_B.canonical.parquet",
+          "xlsx": "files/synthetic4_B.xlsx",
+          "canonical": "files/synthetic4_B.canonical.parquet",
           "n_rows": 99,
           "n_questions": 22
         },
         {
           "version": "C",
-          "xlsx": "files\\synthetic4_C.xlsx",
-          "canonical": "files\\synthetic4_C.canonical.parquet",
-          "n_rows": 110,
+          "xlsx": "files/synthetic4_C.xlsx",
+          "canonical": "files/synthetic4_C.canonical.parquet",
+          "n_rows": 111,
           "n_questions": 22
         }
       ]
@@ -124,22 +124,22 @@
       "files": [
         {
           "version": "A",
-          "xlsx": "files\\synthetic5_A.xlsx",
-          "canonical": "files\\synthetic5_A.canonical.parquet",
+          "xlsx": "files/synthetic5_A.xlsx",
+          "canonical": "files/synthetic5_A.canonical.parquet",
           "n_rows": 58,
           "n_questions": 22
         },
         {
           "version": "B",
-          "xlsx": "files\\synthetic5_B.xlsx",
-          "canonical": "files\\synthetic5_B.canonical.parquet",
+          "xlsx": "files/synthetic5_B.xlsx",
+          "canonical": "files/synthetic5_B.canonical.parquet",
           "n_rows": 37,
           "n_questions": 22
         },
         {
           "version": "C",
-          "xlsx": "files\\synthetic5_C.xlsx",
-          "canonical": "files\\synthetic5_C.canonical.parquet",
+          "xlsx": "files/synthetic5_C.xlsx",
+          "canonical": "files/synthetic5_C.canonical.parquet",
           "n_rows": 42,
           "n_questions": 22
         }
@@ -153,23 +153,23 @@
       "files": [
         {
           "version": "A",
-          "xlsx": "files\\synthetic6_A.xlsx",
-          "canonical": "files\\synthetic6_A.canonical.parquet",
+          "xlsx": "files/synthetic6_A.xlsx",
+          "canonical": "files/synthetic6_A.canonical.parquet",
           "n_rows": 46,
           "n_questions": 22
         },
         {
           "version": "B",
-          "xlsx": "files\\synthetic6_B.xlsx",
-          "canonical": "files\\synthetic6_B.canonical.parquet",
-          "n_rows": 29,
+          "xlsx": "files/synthetic6_B.xlsx",
+          "canonical": "files/synthetic6_B.canonical.parquet",
+          "n_rows": 28,
           "n_questions": 22
         },
         {
           "version": "C",
-          "xlsx": "files\\synthetic6_C.xlsx",
-          "canonical": "files\\synthetic6_C.canonical.parquet",
-          "n_rows": 32,
+          "xlsx": "files/synthetic6_C.xlsx",
+          "canonical": "files/synthetic6_C.canonical.parquet",
+          "n_rows": 33,
           "n_questions": 22
         }
       ]
@@ -182,23 +182,23 @@
       "files": [
         {
           "version": "A",
-          "xlsx": "files\\synthetic7_A.xlsx",
-          "canonical": "files\\synthetic7_A.canonical.parquet",
+          "xlsx": "files/synthetic7_A.xlsx",
+          "canonical": "files/synthetic7_A.canonical.parquet",
           "n_rows": 34,
           "n_questions": 22
         },
         {
           "version": "B",
-          "xlsx": "files\\synthetic7_B.xlsx",
-          "canonical": "files\\synthetic7_B.canonical.parquet",
-          "n_rows": 21,
+          "xlsx": "files/synthetic7_B.xlsx",
+          "canonical": "files/synthetic7_B.canonical.parquet",
+          "n_rows": 22,
           "n_questions": 22
         },
         {
           "version": "C",
-          "xlsx": "files\\synthetic7_C.xlsx",
-          "canonical": "files\\synthetic7_C.canonical.parquet",
-          "n_rows": 24,
+          "xlsx": "files/synthetic7_C.xlsx",
+          "canonical": "files/synthetic7_C.canonical.parquet",
+          "n_rows": 25,
           "n_questions": 22
         }
       ]
@@ -211,23 +211,23 @@
       "files": [
         {
           "version": "A",
-          "xlsx": "files\\synthetic8_A.xlsx",
-          "canonical": "files\\synthetic8_A.canonical.parquet",
+          "xlsx": "files/synthetic8_A.xlsx",
+          "canonical": "files/synthetic8_A.canonical.parquet",
           "n_rows": 108,
           "n_questions": 22
         },
         {
           "version": "B",
-          "xlsx": "files\\synthetic8_B.xlsx",
-          "canonical": "files\\synthetic8_B.canonical.parquet",
-          "n_rows": 69,
+          "xlsx": "files/synthetic8_B.xlsx",
+          "canonical": "files/synthetic8_B.canonical.parquet",
+          "n_rows": 68,
           "n_questions": 22
         },
         {
           "version": "C",
-          "xlsx": "files\\synthetic8_C.xlsx",
-          "canonical": "files\\synthetic8_C.canonical.parquet",
-          "n_rows": 78,
+          "xlsx": "files/synthetic8_C.xlsx",
+          "canonical": "files/synthetic8_C.canonical.parquet",
+          "n_rows": 77,
           "n_questions": 22
         }
       ]

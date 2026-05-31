@@ -326,3 +326,121 @@ def test_report_renders():
     assert "Headline" in md
     assert "synthetic4_A" in md
     assert "Cost" in md
+
+
+# ---- NaiveRagSolver ----------------------------------------------------
+
+
+def _fake_embedding(text: str, dim: int = 64):
+    """Deterministic fake embedding from text content. Cross-run stable."""
+    import hashlib
+
+    import numpy as np
+
+    h = int(hashlib.md5(text.encode()).hexdigest(), 16)
+    rng = np.random.RandomState(h % 2**31)
+    return rng.randn(dim).astype("float32")
+
+
+class MockEmbedAndChatClient:
+    """Mock client that handles BOTH embed_content (sync) and aio.models.generate_content (async)."""
+
+    class _EmbVec:
+        def __init__(self, values):
+            self.values = values
+
+    class _EmbResponse:
+        def __init__(self, vecs):
+            self.embeddings = vecs
+
+    def __init__(self, generate_factory):
+        self._generate_factory = generate_factory
+        # The aio.models path is used for generate_content
+        self.aio = SimpleNamespace(models=self)
+        # The models attribute is used for sync embed_content
+        self.models = self
+        self.embed_call_count = 0
+        self.embed_call_total_items = 0
+        self.generate_call_count = 0
+
+    def embed_content(self, model, contents, config):  # noqa: ARG002
+        self.embed_call_count += 1
+        self.embed_call_total_items += len(contents)
+        vecs = [self._EmbVec(_fake_embedding(t)) for t in contents]
+        return self._EmbResponse(vecs)
+
+    async def generate_content(self, model, contents, config):  # noqa: ARG002
+        self.generate_call_count += 1
+        text, tokens_in, tokens_out = self._generate_factory(self.generate_call_count, contents)
+        return SimpleNamespace(
+            text=text,
+            usage_metadata=SimpleNamespace(
+                prompt_token_count=tokens_in,
+                candidates_token_count=tokens_out,
+            ),
+        )
+
+
+def test_naive_rag_chunks_xlsx():
+    """Chunking splits the file into row-windows with header in each chunk."""
+    bench_files = Path("bench/data/files")
+    if not bench_files.exists():
+        pytest.skip("Bench not built")
+    from finsheet.baselines.naive_rag_solver import NaiveRagSolver
+
+    client = MockEmbedAndChatClient(lambda n, c: ("0", 100, 5))
+    solver = NaiveRagSolver(client, chat_model="mock", embedding_model="mock", chunk_rows=10)
+    chunks = solver._chunk_xlsx(bench_files / "synthetic1_A.xlsx")
+    assert len(chunks) >= 2
+    # Every chunk must contain the header (the word "Company" in row 4 of the spreadsheet)
+    for c in chunks:
+        assert "Company" in c, f"chunk missing header:\n{c[:200]}"
+
+
+def test_naive_rag_caches_embeddings_per_file():
+    """Multiple solve() calls on the same file must embed the file's chunks only once."""
+    bench_files = Path("bench/data/files")
+    if not bench_files.exists():
+        pytest.skip("Bench not built")
+    from finsheet.baselines.naive_rag_solver import NaiveRagSolver
+
+    client = MockEmbedAndChatClient(lambda n, c: ("answer", 100, 5))
+    solver = NaiveRagSolver(
+        client, chat_model="mock", embedding_model="mock", chunk_rows=10, top_k=3
+    )
+    xlsx = bench_files / "synthetic1_A.xlsx"
+    # Three queries on the same file
+    asyncio.run(solver.solve(xlsx, "How many funds?", "numeric"))
+    asyncio.run(solver.solve(xlsx, "Which fund is latest?", "string"))
+    asyncio.run(solver.solve(xlsx, "Is X realized?", "string"))
+    # First call: 1 embed batch for chunks + 1 for query = 2 embed_content calls
+    # Subsequent calls: just 1 embed_content call (the query) since chunks are cached
+    # Total: 2 + 1 + 1 = 4
+    assert client.embed_call_count == 4, (
+        f"expected 4 embed calls (chunks once + 3 queries), got {client.embed_call_count}"
+    )
+
+
+def test_naive_rag_solver_returns_result():
+    """End-to-end solve() returns a SolveResult with the chat response."""
+    bench_files = Path("bench/data/files")
+    if not bench_files.exists():
+        pytest.skip("Bench not built")
+    from finsheet.baselines.naive_rag_solver import NaiveRagSolver
+
+    client = MockEmbedAndChatClient(lambda n, c: ("4", 1500, 5))
+    solver = NaiveRagSolver(client, chat_model="mock", embedding_model="mock")
+    result = asyncio.run(
+        solver.solve(
+            bench_files / "synthetic1_A.xlsx",
+            "How many funds are there?",
+            "numeric",
+        )
+    )
+    assert result.error is None
+    assert result.answer_text == "4"
+    assert result.tokens_in == 1500
+    assert result.cost_usd > 0
+    # The retrieved context (top-K chunks) is smaller than the full file —
+    # confirm the mock saw at least one generate call
+    assert client.generate_call_count == 1

@@ -1,6 +1,9 @@
 # Pre-commit hooks for finsheet-agent.
 # Runs ruff lint + format and basic hygiene checks on every commit.
-# Tests are deliberately excluded — too slow for per-commit; run in CI.
+# Tests are deliberately excluded — too slow for per-commit; CI handles them.
+#
+# Install once: uv run pre-commit install
+# Run manually: uv run pre-commit run --all-files
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -13,10 +16,10 @@ repos:
       - id: check-toml
       - id: check-merge-conflict
       - id: check-added-large-files
-        args: ['--maxkb=5000']  # bench xlsx files are ~25KB, plenty of margin
+        args: ['--maxkb=5000']  # bench xlsx files are ~25KB
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.15
+    rev: v0.15.15   # pinned to match the project's ruff version in uv.lock
     hooks:
       - id: ruff
         args: [--fix]

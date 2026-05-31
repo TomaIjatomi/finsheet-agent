@@ -32,9 +32,9 @@ Answer + cell citations
 |---|---|
 | M1.1 Stack alive | scaffold ready; see `docs/SETUP.md` |
 | M1.2 Synthetic bench | ✓ Built — **24 files, 528 questions** (matches FinSheet-Bench's full scale) |
-| M1.3 Baseline #1: full-context Gemini 3.1 Pro | code ready; see `docs/M1_3_RUNNING.md` to execute (~$15–25, ~30 min wall-clock) |
-| M1.4 Baseline #2: naive RAG | pending |
-| M1.5 Eval report v1 | produced automatically by M1.3 |
+| M1.3 Baseline #1: full-context Gemini 2.5 Pro | ✓ **94.3% overall, 82% hard tier** — see `docs/M1_3_RUNNING.md` |
+| M1.4 Baseline #2: naive RAG | code ready; see `docs/M1_4_RUNNING.md` (~$2, ~10-15 min) |
+| M1.5 Eval report v1 | produced automatically by each baseline |
 | M2.* Multi-agent architecture | pending |
 | M3.* Eval + dashboard + ship | pending |
 
