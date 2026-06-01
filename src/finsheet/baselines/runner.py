@@ -200,6 +200,7 @@ async def run_baseline(
     concurrency: int = 10,
     progress_cb: Callable[[int, int], None] | None = None,
     limit: int | None = None,
+    files: set[str] | None = None,
 ) -> dict:
     """Run a baseline end-to-end.
 
@@ -210,6 +211,8 @@ async def run_baseline(
         concurrency: max in-flight calls (default 10; tune per quota).
         progress_cb: optional callback(done, total) for UI/progress bar.
         limit: if set, only run the first N pending questions (for dry runs).
+        files: if set, only run questions for these file_id_version strings
+            (e.g. {"synthetic4_A", "synthetic1_A"}). For stratified partial evals.
 
     Returns:
         Summary dict with counts, accuracy, total cost, wall-clock time.
@@ -219,6 +222,8 @@ async def run_baseline(
     results_path.parent.mkdir(parents=True, exist_ok=True)
 
     all_questions = _load_questions(gt_path)
+    if files is not None:
+        all_questions = [q for q in all_questions if f"{q.file_id}_{q.version}" in files]
     existing = _load_existing(results_path)
     pending = [q for q in all_questions if (q.file_id, q.version, q.qid) not in existing]
     if limit is not None:

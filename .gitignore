@@ -41,3 +41,12 @@ bench/data/files/*.canonical.parquet
 *.ipynb
 scratch/
 notebooks/
+
+# Auto-generated eval reports (live, overwritten each run).
+# Persistent snapshots live in docs/history/ and ARE committed.
+docs/eval-report.md
+docs/eval-report.json
+
+
+# If those files were ever tracked, untrack them (keeps the local file):
+git rm --cached docs/eval-report.md docs/eval-report.json 2>$null

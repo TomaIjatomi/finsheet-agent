@@ -31,11 +31,14 @@ Answer + cell citations
 | Milestone | Status |
 |---|---|
 | M1.1 Stack alive | scaffold ready; see `docs/SETUP.md` |
-| M1.2 Synthetic bench | ✓ Built — **24 files, 528 questions** (matches FinSheet-Bench's full scale) |
-| M1.3 Baseline #1: full-context Gemini 2.5 Pro | ✓ **94.3% overall, 82% hard tier** — see `docs/M1_3_RUNNING.md` |
-| M1.4 Baseline #2: naive RAG | code ready; see `docs/M1_4_RUNNING.md` (~$2, ~10-15 min) |
-| M1.5 Eval report v1 | produced automatically by each baseline |
-| M2.* Multi-agent architecture | pending |
+| M1.2 Synthetic bench | ✓ Built — **24 files, 528 questions** |
+| M1.3 Baseline #1: full-context Gemini 2.5 Pro | ✓ **94.3% overall, 82% hard tier** |
+| M1.4 Baseline #2: naive RAG | ✓ **69.1% overall, 45.5% hard tier** |
+| M2.1 Spreadsheet MCP server | ✓ Five tools + Docker sandbox; see `docs/M2_1_RUNNING.md` |
+| M2.2 Schema Agent + Query Decomposition | ✓ SchemaAgent (deterministic) + DecompositionAgent (controlled gen); see `docs/M2_2_RUNNING.md` |
+| M2.3 Computation Agent + Fact Sheet | ✓ ComputationAgent + deterministic prelude + retry loop; see `docs/M2_3_RUNNING.md` |
+| M2.4 Verification Agent | pending |
+| M2.5 Tracing + cost capture | pending |
 | M3.* Eval + dashboard + ship | pending |
 
 ## Quickstart

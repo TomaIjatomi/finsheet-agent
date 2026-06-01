@@ -197,3 +197,129 @@ Security flags applied per container:
 > *"I tested both pragmatic baselines an FDE customer would consider — full-context (94%) and naive RAG (~45%). Full-context works but doesn't scale to enterprise spreadsheets with hundreds of sheets. Naive RAG scales but fails because spreadsheet structure doesn't chunk cleanly. The agentic architecture in M2 is the principled answer that handles both context cost and structural complexity."*
 
 **Cost:** ~$0.01 embeddings + ~$1.50 chat = ~$1.50 total per full run. Wall-clock 10-15 minutes.
+
+---
+
+## D15 — Spreadsheet MCP server: stateless, five tools, sandbox-injected
+
+**Decision:** The MCP server exposes five tools, each stateless (file path passed per call):
+- `list_sheets(file_path)`
+- `get_sheet_schema(file_path, sheet)` — returns columns, dtypes, fund layout (`column` vs `row_separator`), fund boundaries, average-row indices, sample rows
+- `get_range(file_path, sheet, range)` — cell values keyed by coordinate
+- `execute_python(file_path, code, named_ranges)` — sandboxed pandas/numpy execution
+- `cite_cells(claim, sheet, cells)` — formats `[Sheet!A1,A2,A3]`-style citations
+
+The Docker sandbox is injected into `build_server()` so tests can swap in a `LocalSandbox` without touching Docker. Production callers (`scripts/start_mcp_server.py`) create the Docker sandbox at server boot.
+
+**Why stateless:**
+- Same server instance can serve any xlsx. That's the property that makes the surface "portable beyond this project" — the differentiation story vs CoDaS (which uses subprocess-embedded execution).
+- The xlsx path naturally lives in the orchestrator's context, not the server's state.
+
+**Why FastMCP rather than the lower-level Server API:**
+- Decorator-based tool registration is much cleaner.
+- Type hints become tool argument schemas automatically.
+- The tradeoff (less control over MCP protocol details) doesn't matter for our tool surface.
+
+**Why ColumnInfo, FundBoundary, SheetSchema as dataclasses + `.to_dict()`:**
+- The MCP wire format is JSON. dataclasses with explicit serializers are cleaner than relying on `dataclasses.asdict()` and chasing JSON-incompatible types (e.g. `pd.Timestamp` in sample rows).
+
+**Sandbox injection pattern:**
+- `build_server(sandbox=...)` lets tests run the full server surface without Docker.
+- Production CLI defaults to `make_sandbox(prefer="docker")` which raises a clear error if Docker isn't installed.
+- `LocalSandbox` requires explicit `allow_unsafe=True` to construct — fails noisily if anyone tries to use it with untrusted code by accident.
+
+**Multi-line header handling — important architectural decision:** when the source xlsx has multi-line headers like `"Entry\nEnterprise Value"`, both `get_sheet_schema` and `load_range_as_df` collapse them to single-line canonical form: `"Entry Enterprise Value"`. The agent reads canonical names from the schema and uses them verbatim in pandas code. **Prompts for the Computation Agent in M2.3 must include the schema's column names as the authoritative reference** — referring to columns by their "natural" abbreviation (e.g., "Entry EV") will fail on multi-line-header files.
+
+**Security model (Docker sandbox):**
+- `--read-only` — root filesystem
+- `--network=none` — no egress
+- `--user=sandbox` — non-root
+- `--memory=512m --cpus=1` — resource caps
+- `--tmpfs /tmp:size=64m,exec` — writable /tmp for Python's import machinery
+- `--rm` — container deleted after run
+- Data mounted read-only at `/data`
+- 30s default timeout per call (configurable)
+
+**Out of scope for M2.1:** writing back to spreadsheets; cross-workbook joins; vision-modal spreadsheet input. Stays consistent with D9.
+
+---
+
+## D16 — Schema Agent deterministic; Decomposition Agent uses controlled generation
+
+**Decision (Schema Agent):** No LLM call. The `SchemaAgent.profile()` method calls the MCP `get_sheet_schema` tool (already deterministic), converts the result into a typed `SchemaCard` (Pydantic), and adds machine-derived plain-English `structural_notes` for downstream agents.
+
+**Why:** The MCP tool already produces rich structured output — columns + dtypes + fund layout + fund boundaries + average rows + sample rows. An LLM call on top would either:
+- "Summarize" the structure (adds hallucination surface for no informational gain), or
+- "Annotate" the columns with semantic types like 'amount in $M' (genuinely useful BUT can be done deterministically by inspecting column-name patterns + sample values).
+
+For now we defer LLM enrichment — it can be added as an option later without changing the SchemaCard wire format.
+
+**Practical benefit:** SchemaAgent tests run with no GCP access in milliseconds. Important for CI and for fast iteration on prompts in M2.3.
+
+**Decision (Decomposition Agent):** Gemini 2.5 Pro with controlled generation — `response_schema=QueryPlan` passed to `GenerateContentConfig`. The Pydantic `QueryPlan` model in `types.py` is the single source of truth for both wire format and response schema.
+
+**Why:** M1.3 showed 36 empty responses out of 528 on long structured prompts when relying on prompt-side JSON instructions. Controlled generation eliminates that failure mode — the model is forced to emit JSON matching the schema or fail in a way we can detect (parse error → AgentResult.error populated). No regex fallback, no "respond in JSON format" instruction in the prompt.
+
+**Trade-off:** controlled generation can occasionally truncate complex plans if `max_output_tokens` is too low. We default to 4096 (vs 2048 for the baseline solver) since plans include longer per-subgoal descriptions.
+
+**What stays unchanged:** the MCP tool surface, the QueryPlan type, the verifier. The agent stack only USES the MCP tools — it doesn't add to or modify them. M2.3 follows the same pattern.
+
+---
+
+## D17 — Computation Agent: deterministic prelude + per-subgoal codegen + retry loop
+
+**Decision:** The Computation Agent does NOT ask the LLM to handle structural concerns. A deterministic Python preamble (built by the orchestrator from the SchemaCard) handles fund-column injection for `row_separator` layouts and removal of non-company rows. The LLM-generated subgoal code runs *after* this preamble and can rely on a clean `df` with `df['Fund']` always populated.
+
+**Why deterministic prelude rather than asking the LLM to handle layout:**
+- M2.2's plans showed the LLM is structurally *aware* (it correctly notes "fund_layout is row_separator, must add a Fund column from boundaries") but asking it to *generate* that injection code on every call wastes tokens and adds a failure mode for no informational gain.
+- The fund-boundary mapping is purely deterministic — given the SchemaCard, the preamble is the same every call. No reason for an LLM call here.
+- Similarly, "filter out average rows + dividers" is a universal precondition for ~70% of questions. Baking it into the prelude means the LLM never has to remember.
+
+**Threshold-based row filter:** non-company rows (fund dividers, average rows) get excluded by counting populated cells per row. Real companies have ~13 non-null fields; dividers have just 2 (Company + the auto-injected Fund). Threshold of 5 cleanly separates them, works across all 8 templates without per-template tuning. Discovered by an end-to-end test that asserted `n_rows == 152` for synthetic4 and got 160 — the 8 extra were dividers slipping through an earlier prelude version that only filtered on Company endswith 'Average'.
+
+**Retry loop with error feedback:** when LLM code fails in the sandbox, the agent calls Gemini again with the original code + the exact error message in the prompt. Default `max_retries=2` (so 3 attempts total per subgoal). Stops early if a subgoal fails permanently — subsequent subgoals almost certainly can't continue without the earlier result. The `n_retries` count is surfaced in `ComputationResult` for observability and cost tracking.
+
+**Per-subgoal Gemini calls vs single-shot:** one Gemini call per subgoal lets the Fact Sheet from previous steps become context for the next. This matters when subgoal N needs to reference subgoal N-1's value as a literal (e.g., "now filter to companies above the median you just computed"). Costs more tokens but enables the architecture's compositional structure.
+
+**Markdown fence stripping:** Gemini occasionally wraps code in ` ```python ... ``` ` despite our prompt explicitly asking for raw code. We strip fences in `_strip_markdown_fences()` rather than burn retries on it.
+
+**Final-answer formatting in `_format_final_answer()`:** handles common LLM quirks — single-key dict when a number was asked for (`{"total": 42}` → `42.0`), dict values flattened to list when a list was asked for, etc. Maps to the verifier's 6 answer types. The output goes straight into the existing verifier from M1.3 — no new comparison logic needed.
+
+**What stays unchanged for M2.4 onwards:** the MCP tool surface, the FactSheet type, the verifier. M2.4 (Verification Agent) reads cells via `get_range` and checks the Computation Agent's outputs — it consumes FactSheets, it doesn't produce them.
+
+---
+
+## D18 — Single-codegen-call per question (architectural correction to M2.3)
+
+**Decision:** the Computation Agent generates **one** block of Python code per question, not one block per subgoal. The QueryPlan's subgoals appear in the prompt as ordered context, but the LLM produces a single chained pandas expression that performs all operations in sequence.
+
+**Why the change:**
+
+The original M2.3 design (D17) made one Gemini call per subgoal — each subgoal's code was a separate sandbox call, and the Fact Sheet carried intermediate values between them as JSON snippets in the next subgoal's prompt. The intent was CoDaS-style audit granularity.
+
+The partial eval on synthetic4_A (78.3% / 17 of 22) exposed the failure mode. For two-subgoal plans like "filter to Unrealized, then sum EV per fund" (Q11), the LLM's Step 2 code was `df.groupby('Fund')[...].sum()` — operating on the *original unfiltered* `df`, not Step 1's filtered result. The filter was lost between sandbox calls. Same failure on Q4 (newest fund + list cos), Q8 (per-fund unrealized count). Together these accounted for **3 of 5 failures** on the hard tier — recoverable by structural change.
+
+Inspecting the working cases (Q5 sort) showed the LLM was often *implicitly* combining subgoals into one chained expression anyway. So the architecture was paying the cost of multi-call orchestration without getting the granularity benefit.
+
+**What the change does:**
+
+- One Gemini call per question. The user prompt includes the full ordered subgoal list as logical context.
+- One sandbox call. The LLM emits one chained pandas expression (or 2-3 statements if a chain isn't natural) that sets `__result__` to the final answer.
+- One FactSheetEntry per question. The `code` field still contains the full executed code (prelude + LLM block) for audit; the granular per-step decomposition lives in the QueryPlan in the results JSONL alongside.
+
+**What stays the same:**
+
+- The deterministic prelude (D17) — still injected before every sandbox call.
+- The retry loop — still 2 retries by default, with the error fed back to the LLM in the fix prompt.
+- The plan structure — Decomposition Agent still emits N subgoals; they guide the LLM's reasoning even though they no longer become N executions.
+- Final-answer formatting — unchanged.
+
+**Projected impact on the hard tier:**
+- Q11 (per-fund unrealized sum) — likely passes
+- Q8 (per-fund unrealized count) — likely passes
+- Q4 (newest fund company list) — likely passes
+- Hard-tier accuracy: 77.3% → ~91% (target above M1.3's 81.8%)
+
+**What the failure data taught us about prompt design:** explicit chained examples in the system prompt — three of them, covering filter+aggregate, lookup-by-fund-name, and ratio+median — give the LLM a concrete template to follow. The earlier "set `__result__` for this subgoal" framing was too abstract.
+
+**Cost / latency impact:** one Gemini call instead of N reduces per-question cost by roughly (N-1)/N. For a 3-subgoal question, that's ~67% fewer codegen calls. The output codegen call is slightly longer (the LLM emits one chained expression rather than one short statement), but overall cost drops.

@@ -18,6 +18,7 @@ dependencies = [
     "python-dateutil>=2.9",
     "python-dotenv>=1.0",
     "google-genai>=1.0",
+    "mcp>=1.27.2",
 ]
 
 [project.optional-dependencies]
@@ -25,7 +26,6 @@ dependencies = [
 agents = [
     "google-adk>=0.1",
     "google-cloud-aiplatform>=1.112",
-    "mcp>=0.4",
 ]
 # Observability for traces + cost tracking
 observability = [

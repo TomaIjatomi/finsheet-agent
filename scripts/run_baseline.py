@@ -68,7 +68,7 @@ def make_progress_bar():
 
 
 # Strategy → (default results file, solver factory).
-def _strategy_config(strategy: str, client, model: str):
+def _strategy_config(strategy: str, client, model: str, sandbox_choice: str = "docker"):
     if strategy == "fullcontext":
         return (
             "bench/data/results/baseline_fullcontext.jsonl",
@@ -79,6 +79,24 @@ def _strategy_config(strategy: str, client, model: str):
             "bench/data/results/baseline_naive_rag.jsonl",
             NaiveRagSolver(client, chat_model=model),
         )
+    if strategy == "agent":
+        # Lazy imports keep the file_not_found case clean if mcp/ isn't installed
+        from finsheet.agents import AgentSolver
+        from finsheet.mcp.sandbox import make_sandbox
+
+        if sandbox_choice == "docker":
+            sandbox = make_sandbox(prefer="docker")
+        else:
+            print(
+                "⚠ Running agent eval with LocalSandbox. UNSAFE for any code path "
+                "where the prompt is influenced by untrusted input.",
+                file=sys.stderr,
+            )
+            sandbox = make_sandbox(prefer="local_unsafe", allow_unsafe=True)
+        return (
+            "bench/data/results/agent.jsonl",
+            AgentSolver(client=client, sandbox=sandbox, model=model),
+        )
     raise ValueError(f"Unknown strategy: {strategy}")
 
 
@@ -86,9 +104,9 @@ def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument(
         "--strategy",
-        choices=["fullcontext", "naive_rag"],
+        choices=["fullcontext", "naive_rag", "agent"],
         default="fullcontext",
-        help="M1.3 = fullcontext (default), M1.4 = naive_rag",
+        help="M1.3 = fullcontext (default), M1.4 = naive_rag, M2 = agent",
     )
     p.add_argument(
         "--bench-dir", default="bench/data", help="Directory with files/ and ground_truth.jsonl"
@@ -104,13 +122,21 @@ def main() -> int:
         type=int,
         default=5,
         help="Max in-flight LLM calls. Default 5 is safe for GA quotas; "
-        "lower to 2-3 if you still hit 429s.",
+        "lower to 2-3 if you still hit 429s. For agent strategy, "
+        "consider 2-3 since each question fans out into many calls.",
     )
     p.add_argument(
         "--limit",
         type=int,
         default=None,
         help="Process only the first N pending questions (dry run).",
+    )
+    p.add_argument(
+        "--files",
+        default=None,
+        help="Comma-separated list of file_id_version filters "
+        "(e.g. 'synthetic4_A,synthetic1_A'). For stratified "
+        "partial evals.",
     )
     p.add_argument(
         "--report-only",
@@ -123,6 +149,14 @@ def main() -> int:
         help="Re-grade existing results against current verifier "
         "(no LLM calls), then regenerate report.",
     )
+    p.add_argument(
+        "--sandbox",
+        choices=["docker", "local_unsafe"],
+        default="docker",
+        help="Code-execution sandbox for the agent strategy. "
+        "Ignored for non-agent strategies. 'local_unsafe' is "
+        "fast iteration only — never use against untrusted prompts.",
+    )
     p.add_argument("--model", default=os.environ.get("GEMINI_PRO_MODEL", "gemini-2.5-pro"))
     args = p.parse_args()
 
@@ -130,17 +164,23 @@ def main() -> int:
     default_results_per_strategy = {
         "fullcontext": "bench/data/results/baseline_fullcontext.jsonl",
         "naive_rag": "bench/data/results/baseline_naive_rag.jsonl",
+        "agent": "bench/data/results/agent.jsonl",
     }
     results_path_str = args.results_path or default_results_per_strategy[args.strategy]
     results_path = Path(results_path_str)
     bench_dir = Path(args.bench_dir)
     report_path = Path(args.report_path)
 
-    solver_name = (
-        "fullcontext_gemini_2.5_pro"
-        if args.strategy == "fullcontext"
-        else "naive_rag_gemini_2.5_pro"
-    )
+    solver_name = {
+        "fullcontext": "fullcontext_gemini_2.5_pro",
+        "naive_rag": "naive_rag_gemini_2.5_pro",
+        "agent": "agent_gemini_2.5_pro",
+    }[args.strategy]
+
+    # Optional file filter for stratified partial evals
+    file_filter: set[str] | None = None
+    if args.files:
+        file_filter = {s.strip() for s in args.files.split(",") if s.strip()}
 
     if args.rescore:
         from finsheet.baselines.rescore import rescore_file
@@ -189,12 +229,14 @@ def main() -> int:
         return 1
 
     client = genai.Client(vertexai=True, project=project_id, location=region)
-    _, solver = _strategy_config(args.strategy, client, args.model)
+    _, solver = _strategy_config(args.strategy, client, args.model, args.sandbox)
 
     print(f"Running baseline: {solver.name}  [strategy={args.strategy}]")
     print(f"  Bench: {bench_dir}")
     print(f"  Results: {results_path}")
     print(f"  Concurrency: {args.concurrency}")
+    if file_filter:
+        print(f"  Files filter: {sorted(file_filter)}")
     if args.limit:
         print(f"  Limit: {args.limit} (dry run)")
     print()
@@ -207,6 +249,7 @@ def main() -> int:
             concurrency=args.concurrency,
             progress_cb=make_progress_bar(),
             limit=args.limit,
+            files=file_filter,
         )
     )
 

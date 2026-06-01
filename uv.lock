@@ -534,6 +534,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "google-genai" },
+    { name = "mcp" },
     { name = "openpyxl" },
     { name = "pandas" },
     { name = "pyarrow" },
@@ -545,7 +546,6 @@ dependencies = [
 agents = [
     { name = "google-adk" },
     { name = "google-cloud-aiplatform" },
-    { name = "mcp" },
 ]
 dev = [
     { name = "mypy" },
@@ -573,7 +573,7 @@ requires-dist = [
     { name = "google-cloud-aiplatform", marker = "extra == 'agents'", specifier = ">=1.112" },
     { name = "google-genai", specifier = ">=1.0" },
     { name = "langfuse", marker = "extra == 'observability'", specifier = ">=2.50" },
-    { name = "mcp", marker = "extra == 'agents'", specifier = ">=0.4" },
+    { name = "mcp", specifier = ">=1.27.2" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.11" },
     { name = "openpyxl", specifier = ">=3.1" },
     { name = "opentelemetry-api", marker = "extra == 'observability'", specifier = ">=1.27" },
