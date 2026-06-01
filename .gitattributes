@@ -1,0 +1,12 @@
+# Normalize line endings: store as LF in the repo, check out as native locally.
+# Prevents Windows checkouts from generating CRLF diffs against POSIX dev machines.
+* text=auto eol=lf
+
+# Excel and binary assets should never be normalized.
+*.xlsx binary
+*.xls  binary
+*.parquet binary
+*.svg  text
+*.png  binary
+*.jpg  binary
+*.pdf  binary

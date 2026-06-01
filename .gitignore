@@ -34,7 +34,7 @@ Thumbs.db
 *.swp
 
 # Generated bench files (rebuild deterministically with seed=42)
-# Keep ground_truth.jsonl + manifest.json committed for reference
+# Keep ground_truth.jsonl + manifest.json committed for reference.
 bench/data/files/*.canonical.parquet
 
 # Local notebooks / scratch
@@ -47,6 +47,5 @@ notebooks/
 docs/eval-report.md
 docs/eval-report.json
 
-
-# If those files were ever tracked, untrack them (keeps the local file):
-git rm --cached docs/eval-report.md docs/eval-report.json 2>$null
+# Stray PowerShell artifact directory
+-Force/

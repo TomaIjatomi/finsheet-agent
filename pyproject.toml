@@ -8,6 +8,24 @@ authors = [
     { name = "Toma Ijatomi" },
 ]
 license = { text = "MIT" }
+keywords = [
+    "multi-agent",
+    "mcp",
+    "llm",
+    "agentic-ai",
+    "gemini",
+    "finance",
+    "spreadsheet-qa",
+    "codas",
+    "finsheet-bench",
+]
+
+[project.urls]
+Homepage = "https://github.com/TomaIjatomi/finsheet-agent"
+Repository = "https://github.com/TomaIjatomi/finsheet-agent"
+"Blog post" = "https://tomaijatomi.com/blog/finsheet-agent/"
+Documentation = "https://github.com/TomaIjatomi/finsheet-agent/blob/main/docs/decisions.md"
+Issues = "https://github.com/TomaIjatomi/finsheet-agent/issues"
 
 # Core deps — what bench construction and the smoke test need.
 # Agent + observability + UI deps are optional groups, installed on demand.

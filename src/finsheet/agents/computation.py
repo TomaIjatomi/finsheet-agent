@@ -1,24 +1,33 @@
 """
-Computation Agent (M2.3).
+Computation Agent (M2.3, refined per D18).
 
 Takes a SchemaCard + QueryPlan + the MCP execute_python tool, and produces
-a FactSheet with one entry per subgoal. Each entry contains the value
-produced and the exact code that produced it — full traceability.
+a FactSheet with one entry per question (single codegen, single sandbox call).
 
-Flow per subgoal:
-  1. Generate pandas code (Gemini 2.5 Pro, controlled-output-tokens).
-  2. Prepend the deterministic prelude (Fund column + average-row filter).
-  3. Call execute_python via MCP with the full code + the workbook's data_range.
-  4. On error: retry up to max_retries with the error message in context.
-  5. Append a FactSheetEntry recording outcome.
+Flow per question:
+  1. Build the deterministic prelude from the SchemaCard (Fund column injection
+     for row_separator layouts + non-company-row filter).
+  2. Generate one block of pandas code via Gemini 2.5 Pro. The QueryPlan's
+     subgoals appear in the prompt as ordered reasoning context, but the LLM
+     emits a single chained pandas expression that performs all subgoals at
+     once and sets `__result__`.
+  3. Prepend the prelude and call execute_python via MCP, one sandbox call.
+  4. On error: retry up to max_retries with the original code + error message
+     fed back into the next codegen call.
+  5. Append a single FactSheetEntry for the question (audit trail).
+
+Why single-codegen rather than per-subgoal: the earlier per-subgoal pattern
+lost DataFrame filter state between sandbox calls (Step 2's code received the
+prelude-cleaned df, not Step 1's filtered df). One Gemini call producing one
+chained expression sidesteps that failure mode entirely. See docs/decisions.md
+D18 for the full rationale.
 
 Architectural commitment from CoDaS: every value in the final answer comes
 from a tool call. The LLM never invents numbers — it generates code, the
 sandbox executes the code, the result lands in the Fact Sheet.
 
-After all subgoals run, `format_final_answer()` casts the last entry's
-value into the shape expected by the verifier (numeric/string/list/dict/
-bool/date).
+`format_final_answer()` casts the entry's value into the shape expected by
+the verifier (numeric/string/list/dict/bool/date).
 """
 
 from __future__ import annotations
@@ -309,7 +318,8 @@ class ComputationAgent:
         block for the question, executed in one sandbox call. The plan's
         subgoals are passed as prompt context — they guide the LLM's reasoning
         but don't become separate sandbox calls (the per-subgoal pattern lost
-        filter state between calls, see D17 in decisions.md).
+        filter state between calls; see docs/decisions.md D18 for the
+        rationale and partial-eval evidence).
 
         Returns a ComputationResult with a Fact Sheet containing one entry
         per question."""

@@ -26,6 +26,8 @@ A running log. Append as decisions are made; never rewrite past entries.
 
 ## D3 — Stack: Gemini 3.1 Pro + Gemini Flash, ADK orchestration, MCP tool surface
 
+> **Updated by D13.** The Gemini 3.1 Pro Preview model was later swapped for Gemini 2.5 Pro (GA) as the default for production realism and quota headroom. The ADK + MCP + Gemini Flash + Docker sandbox decisions in this entry are unchanged. See D13 for the model-swap rationale.
+
 **Decision:** Gemini 3.1 Pro Preview for reasoning agents (Orchestrator, Query Decomposition, Computation, Verification); Gemini Flash for lightweight agents (Schema, Synthesis). ADK Python 2.0 for orchestration. MCP server for spreadsheet + sandboxed Python.
 
 **Why:**
@@ -267,6 +269,8 @@ For now we defer LLM enrichment — it can be added as an option later without c
 ---
 
 ## D17 — Computation Agent: deterministic prelude + per-subgoal codegen + retry loop
+
+> **Superseded in part by D18.** The per-subgoal codegen pattern (one Gemini call + one sandbox call per subgoal) was replaced with single-codegen-per-question after the partial-eval exposed a state-passing failure. The **deterministic prelude** and **retry loop** parts of this decision are still in force. See D18 for the corrected design and the failure mode that drove the change.
 
 **Decision:** The Computation Agent does NOT ask the LLM to handle structural concerns. A deterministic Python preamble (built by the orchestrator from the SchemaCard) handles fund-column injection for `row_separator` layouts and removal of non-company rows. The LLM-generated subgoal code runs *after* this preamble and can rely on a clean `df` with `df['Fund']` always populated.
 
